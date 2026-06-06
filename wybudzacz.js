@@ -2,12 +2,23 @@ const express = require("express");
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
 const { joinVoiceChannel } = require("@discordjs/voice");
 
-// --- Serwer HTTP, w który będzie uderzał Twój Cron Job ---
+// --- POPRAWIONY SERWER HTTP (Dostosowany pod Render i Cron Job) ---
 const app = express();
+const PORT = process.env.PORT || 10000; // Render domyślnie używa portu 10000
+
+// Ścieżka dla Twojego Cron Joba (np. cron-job.org)
 app.get("/ping", (req, res) => {
-  res.send("OK"); // Odpowiedź dla crona, która utrzymuje bota na Renderze przy życiu
+  res.status(200).send("OK");
 });
-app.listen(process.env.PORT || 3000, () => console.log("Serwer HTTP aktywny"));
+
+// Ścieżka główna (na wypadek, gdyby cron uderzał w sam adres główny)
+app.get("/", (req, res) => {
+  res.status(200).send("Bot żyje i ma się dobrze!");
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Serwer HTTP aktywny na porcie ${PORT}`);
+});
 
 // --- Bot Discord ---
 const client = new Client({
