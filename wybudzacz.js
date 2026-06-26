@@ -9,6 +9,7 @@ const {
 
 const { joinVoiceChannel } = require("@discordjs/voice");
 const fs = require("fs");
+const path = require("path");
 
 // --- SERWER HTTP (Render / Cron) ---
 const app = express();
@@ -39,11 +40,19 @@ client.once("ready", async () => {
 
   // ===== ANIMOWANY AVATAR =====
   try {
-    const avatar = fs.readFileSync("./avatar.gif");
-    await client.user.setAvatar(avatar);
-    console.log("🟢 Ustawiono animowany avatar bota!");
+    const avatarPath = path.join(__dirname, "avatar.gif");
+    
+    if (fs.existsSync(avatarPath)) {
+      const avatar = fs.readFileSync(avatarPath);
+      await client.user.setAvatar(avatar);
+      console.log("🟢 Ustawiono animowany avatar bota!");
+    } else {
+      console.log("🔴 Błąd: Plik avatar.gif nie istnieje w głównym folderze bota!");
+    }
   } catch (err) {
-    console.log("🔴 Błąd avatara:", err);
+    console.error("🔴 Szczegółowy błąd przy ustawianiu avatara:");
+    console.error(err); 
+    // Jeśli w logach pojawi się "Rate limit", oznacza to, że musisz odczekać godzinę przed kolejną próbą.
   }
   // ============================
 
