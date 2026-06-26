@@ -4,7 +4,7 @@ import os
 import asyncio
 from aiohttp import web
 
-# --- SERWER HTTP (Render / Cron) ---
+# --- SERWER HTTP (Utrzymanie na Renderze) ---
 async def handle_ping(request):
     return web.Response(text="OK")
 
@@ -33,14 +33,21 @@ class MyBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
+        # Odpalenie serwera HTTP w tle
         asyncio.create_task(start_web_server())
+        # Wymuszenie załadowania kodeka audio, jeśli jest dostępny
+        if not discord.opus.is_loaded():
+            try:
+                discord.opus.load_opus()
+            except Exception as e:
+                print(f"Informacja o Opus: {e} (zazwyczaj nie wpływa to na samo dołączanie)")
         await self.tree.sync()
 
 bot = MyBot()
 
 @bot.event
 async def on_ready():
-    print(f'Bot nadaje jako: {bot.user}')
+    print(f'Bot działa jako: {bot.user}')
 
     # ===== ANIMOWANY AVATAR =====
     try:
@@ -49,14 +56,16 @@ async def on_ready():
                 await bot.user.edit(avatar=image.read())
             print("🟢 Ustawiono animowany avatar bota!")
         else:
-            print("🔴 Błąd: Plik avatar.gif nie istnieje w głównym folderze!")
+            print("🔴 Błąd: Brak pliku avatar.gif")
     except discord.HTTPException as e:
-        print("🔴 Szczegółowy błąd przy ustawianiu avatara:")
-        print(e)
-    # ============================
+        print(f"🔴 Awatar: {e.text} (Prawdopodobnie limit Discorda - spróbuj ponownie za godzinę)")
+    except Exception as e:
+        print(f"🔴 Inny błąd awatara: {e}")
 
+# Komenda /wybudz
 @bot.tree.command(name="wybudz", description="Wchodzi i wychodzi z kanału VC 10 razy")
 async def wybudz(interaction: discord.Interaction):
+    # Sprawdzenie czy użytkownik jest na kanale
     if not interaction.user.voice or not interaction.user.voice.channel:
         await interaction.response.send_message("Musisz być na kanale głosowym, żeby mnie użyć!", ephemeral=True)
         return
@@ -66,16 +75,25 @@ async def wybudz(interaction: discord.Interaction):
 
     for i in range(10):
         try:
-            vc = await channel.connect()
+            # Rozłączamy bota jeśli już gdzieś wisiał, żeby zresetować połączenie
+            if interaction.guild.voice_client:
+                await interaction.guild.voice_client.disconnect(force=True)
+                await asyncio.sleep(0.2)
+
+            # Połączenie z kanałem
+            vc = await channel.connect(timeout=10.0, reconnect=True)
             await asyncio.sleep(0.6)
-            await vc.disconnect()
+            
+            # Rozłączenie
+            await vc.disconnect(force=True)
             await asyncio.sleep(0.4)
+            
         except Exception as e:
-            print("Błąd połączenia głosowego:", e)
-            break
+            print(f" Błąd podczas próby {i+1}/10: {e}")
+            await asyncio.sleep(0.5)
 
 token = os.environ.get("TOKEN")
 if token:
     bot.run(token)
 else:
-    print("🔴 Błąd: Brak zmiennej środowiskowej TOKEN!")
+    print("🔴 Brak zmiennej TOKEN!")
